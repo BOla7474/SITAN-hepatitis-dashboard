@@ -1,0 +1,99 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>SITAN Dashboard – External Data Version</title>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<style>
+body { font-family: Arial, sans-serif; margin:16px; }
+button { margin:4px; padding:6px 10px; border-radius:6px; border:1px solid #ccc; cursor:pointer; }
+.card { border:1px solid #eee; border-radius:10px; padding:10px; margin:12px 0; }
+</style>
+</head>
+<body>
+
+<h2>Africa Viral Hepatitis SITAN Dashboard</h2>
+<p>Interactive dashboard connected to external dataset.</p>
+
+<div id="tabs"></div>
+<div id="panels"></div>
+
+<script>
+
+async function loadData(){
+ const response = await fetch("data/SITAN_data.csv");
+ const text = await response.text();
+ const rows = text.trim().split("\n").slice(1);
+
+ const dataset = {};
+ rows.forEach(r=>{
+   const [indicator,country,iso3,value] = r.split(",");
+   if(!dataset[indicator]){
+     dataset[indicator] = {country:[], iso3:[], value:[]};
+   }
+   dataset[indicator].country.push(country);
+   dataset[indicator].iso3.push(iso3);
+   dataset[indicator].value.push(parseFloat(value));
+ });
+
+ return dataset;
+}
+
+function buildIndicator(idx,name,data){
+
+ var d=data[name];
+
+ Plotly.newPlot("map_"+idx,[{
+   type:"choropleth",
+   locationmode:"ISO-3",
+   locations:d.iso3,
+   z:d.value,
+   colorbar:{title:"Value"}
+ }],{geo:{scope:"africa"},margin:{l:0,r:0,t:0,b:0}});
+
+ var order = d.value.map((v,i)=>[v,i]).sort((a,b)=>b[0]-a[0]).slice(0,10).map(x=>x[1]);
+
+ var x=order.map(i=>d.value[i]);
+ var y=order.map(i=>d.country[i]);
+
+ Plotly.newPlot("bar_"+idx,[{
+   type:"bar",
+   orientation:"h",
+   x:x,
+   y:y,
+   marker:{color:"#F57C00"}
+ }],{margin:{l:140}});
+
+}
+
+loadData().then(data=>{
+
+ const indicators=Object.keys(data);
+ const tabs=document.getElementById("tabs");
+ const panels=document.getElementById("panels");
+
+ indicators.forEach((n,i)=>{
+
+   const btn=document.createElement("button");
+   btn.innerText=n;
+   btn.onclick=()=>buildIndicator(i,n,data);
+   tabs.appendChild(btn);
+
+   const div=document.createElement("div");
+   div.className="card";
+   div.innerHTML=`<h3>${n}</h3>
+   <div id="map_${i}" style="height:600px;"></div>
+   <div id="bar_${i}" style="height:400px;"></div>`;
+   panels.appendChild(div);
+
+ });
+
+ indicators.forEach((n,i)=>buildIndicator(i,n,data));
+
+});
+
+</script>
+
+</body>
+</html>
